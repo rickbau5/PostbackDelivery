@@ -11,7 +11,7 @@ First things first, had to set up the environment.
 - Installed [Git](https://git-scm.com/) using `apt-get`
   - Added identity file for my Github account
   
-At this point I had the environment set up with what I could immediately tell that was needed from my interpretation of the specication. From here, I moved on to Phase 1
+At this point I had the environment set up with what I could immediately tell that was needed from my interpretation of the specication. From here, I moved on to Phase I
 
 ## Phase I
 The main hurdle in Phase I was learning the basics of **PHP**. Also I immediately realized I needed a way to generate the sample request (as detailed in the [Ingestion Agent doc](doc/IngestionAgent.md)), so I went to work on this first.
@@ -48,6 +48,12 @@ curl -X POST -H "Content-Type: application/json" -d '{ "endpoint": { "method":"G
 ### Ingesting the Request
 Now that I was able to post the request to a server, I needed to get at the post data through PHP. I ran into the issue here that $_POST didn't contain anything. I had already done some testing and had found that it could handle other POST requests so I knew that there wasn't a configuration issue or something to that effect. Eventually I found that this was because PHP doesn't decode JSON content type automatically, like it does for several other types of POST requests. I immediately found, though, that the data was accessible from `php://input`.
 
-I know had the input using `file_get_contents('php://input')` but doing a `var_dump` on it, I saw that it was of type `string`. Which meant, I couldn't get at the contents in a nice way (like accessing an array/map, for instance). I needed to decode this string into a JSON object so I could easily access the data within it. I quickly found that this was done using in the following manner: `json_decode($postdata,true)`, where `true` makes it return a so-called `associative array`.
+I now had the input using `file_get_contents('php://input')` but doing a `var_dump` on it, I saw that it was of type `string`. Which meant, I couldn't get at the contents in a nice way (like accessing an array/map, for instance). I needed to decode this string into a JSON object so I could easily access the data within it. I quickly found that this was done using in the following manner: `json_decode($postdata,true)`, where `true` makes it return a so-called `associative array`.
 
 At this point I had pretty much all I needed to get to the real meat of solving **Phase I**. A not-so-safe-or-pretty version of the ingestion agent at this point can be found [here](https://github.com/rickbau5/PostbackDelivery/blob/64f262b60e647f52a6274723342e15dfa031afa8/src/ingest.php). It also includes a sample of printing out the objects in `data`, which is an important part of this project and phase.
+
+### Processing the Request
+Now to get to processing the actual request. My first pass was completed quickly, but involved little checking and just served as a rudimentary proof of concept. Really nothing fancy going on besides playing with variables, utilizing `str_replace`, and...well that's it. 
+
+Here, I was going for simplicity, so I could get move on to the next part of this phase, which will be pushing the formatted request into Redis. I planned on coming back to this part after I started working with Redis and Go if I need to restructure the data in any way, or in the *unlikely* case this implementation is perfect, come back at the end to add in all the error handling.
+
