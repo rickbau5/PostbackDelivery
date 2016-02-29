@@ -1,6 +1,8 @@
 # Postback Delivery
 Build a webapp to function as a small scale simulation of synchronizing data with third-party partners.
 
+Documentation can be found in the [doc](doc) folder, including [versions](doc/Info.md#Versions) used for all relevant modules.
+
 ## Instructions
 1. Provision provided linux server (see Resources - Server) with software stack required to complete project.
 2. Build a php application to ingest http requests, and a go application to deliver http responses. Use Redis to host a job queue between them.
@@ -15,7 +17,7 @@ Build a webapp to function as a small scale simulation of synchronizing data wit
 5. Web response (see sample response)
 
 ## App Operation
-### Ingestion Agent (PHP)
+### [Ingestion Agent (PHP)](doc/IngestionAgent.md)
 1. Accept incoming http request
 2. Push a "postback" object to Redis for each "data" object contained in accepted request.
 
@@ -26,27 +28,11 @@ Build a webapp to function as a small scale simulation of synchronizing data wit
 - Endpoint url: request.endpoint.url, with {xxx} replaced with values from each request.endpoint.data.xxx element.
 3. Log delivery time, response code, response time, and response body.
 
-## Sample Request
-    (POST) http://{server_ip}/ingest.php
-    (RAW POST DATA) {  
-      "endpoint":   {  
-        "method":"GET",
-        "url":"http://sample_domain_endpoint.com/data?key={key}&value={value}&foo={bar}"
-      },
-      "data":[  
-        {  
-          "key":"Azureus",
-          "value":"Dendrobates"
-        },
-        {  
-          "key":"Phyllobates",
-          "value":"Terribilis"
-        }
-      ]
-    }
+## Sample Request 
+See [Ingestion Agent](doc/IngestionAgent.md) doc for example and command to create the request (using cURL).
 
 ## Sample Response
-    http://sample_domain_endpoint.com/data?key=Phyllobates&value=Terribilis&foo=
+`http://sample_domain_endpoint.com/data?key=Phyllobates&value=Terribilis&foo=`
     
 ---
 

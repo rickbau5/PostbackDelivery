@@ -1,4 +1,5 @@
-# Ingestion Agent
+# Ingestion Agent (PHP)
+Handles incomng http requests from the boundless web and pushes data to Redis. Implemented in PHP.
 
 __Specification__
 
@@ -7,24 +8,33 @@ __Specification__
 
 __Sample Request__
 
-(POST) http://{server_ip}/ingest.php
-(RAW POST DATA) {  
-  "endpoint":	{  
+*Post*
+
+`http://{server_ip}/ingest.php`
+
+*Raw Post Data*
+
+```json 
+{ 
+  "endpoint":	{
     "method":"GET",
     "url":"http://sample_domain_endpoint.com/data?key={key}&value={value}&foo={bar}"
   },
-  "data":[  
-    {  
+  "data":[
+    {
       "key":"Azureus",
       "value":"Dendrobates"
     },
-    {  
+    {
       "key":"Phyllobates",
       "value":"Terribilis"
     }
   ]
 }
+```
 
 __Created By__
 
-`curl -X POST -H "Content-Type: application/json" -d '{ "endpoint": { "method":"GET", "url":"http://sample_domain_endpoint.com/data?key={key}&value={value}&foo={bar}" }, "data":[ { "key":"Azureus", "value":"Dendrobates" }, { "key":"Phyllobates", "value":"Terribilis" } ] }' http://{server-ip}/ingest.php`
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{ "endpoint": { "method":"GET", "url":"http://sample_domain_endpoint.com/data?key={key}&value={value}&foo={bar}" }, "data":[ { "key":"Azureus", "value":"Dendrobates" }, { "key":"Phyllobates", "value":"Terribilis" } ] }' http://{server-ip}/ingest.php
+```
