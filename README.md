@@ -21,11 +21,11 @@ Documentation can be found in the [doc](doc) folder, including [versions](doc/In
 1. Accept incoming http request
 2. Push a "postback" object to Redis for each "data" object contained in accepted request.
 
-### Delivery Agent (Go)
+### [Delivery Agent (Go)](doc/DeliveryAgent.md)
 1. Continuously pull "postback" objects from Redis
 2. Deliver each postback object to http endpoint:
-- Endpoint method: request.endpoint.method.
-- Endpoint url: request.endpoint.url, with {xxx} replaced with values from each request.endpoint.data.xxx element.
+  - Endpoint method: request.endpoint.method.
+  - Endpoint url: request.endpoint.url, with {xxx} replaced with values from each request.endpoint.data.xxx element.
 3. Log delivery time, response code, response time, and response body.
 
 ## Sample Request 

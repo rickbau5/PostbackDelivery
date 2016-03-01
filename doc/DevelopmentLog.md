@@ -62,7 +62,7 @@ Here, I was going for simplicity, so I could get move on to the next part of thi
 [State of ingest.php](https://github.com/rickbau5/PostbackDelivery/blob/4f8bd6cb687a4c188b76a9d6a7f9cd171a97b286/src/ingest.php#L17-L28) at the conclusion of this section with lines of interest highlighted. From here I could move on to the extremely brief Phase II.
 
 ## Phase II - Queueing
-This phase concerned getting the data into Redis from PHP. This proved very simple.
+This phase concerned getting the data into Redis from PHP and then back out to Go. This proved very simple.
 
 ### Pushing the processed request into Redis
 Now that I had the formatted request ready to be put into Redis, just needed to get that connection set up. To achieve this, I installed [phpredis](https://github.com/phpredis/phpredis), which provides a way to interact with Redis from PHP. As part of this, I had to toy with the PHP config to enable this extension. Also during this stage I created an Upstart service to maintain `redis-server` and ensure that it would start and be up constantly (I think?).
@@ -72,3 +72,6 @@ Once the extension was enabled, I really only added two new lines of code to cre
 - `$redis->lPush('reqests', $populated)` where `$populated` is the formatted URL. (I'm pretty sure I'm going to need to come back to this point and restructure the data a bit, but at this point I'm more interested in getting the whole flow set up.)
 
 [State of ingest.php](https://github.com/rickbau5/PostbackDelivery/blob/7e4991aaadad63114abc796fef5fd886d429ac40/src/ingest.php#L28) at the conclusion of this section. From here, I could move onto the Go portion of this project.
+
+### Pulling the data out of Redis into Go
+Here I fought with Go for a bit to figure out exactly how to import the go-redis package to have access to the Redis connector. Once that was resolved, connecting to Redis from Go and verifying that it was working and communicating correctly was simple. [State of delivery agent](https://github.com/rickbau5/PostbackDelivery/blob/abf9f62f9d20266d141035146e48f07c7311049d/src/github.com/rickbau5/deliveryagent/main.go) at this point was essentially the "hello world" of this situation.
