@@ -13,7 +13,7 @@ First things first, had to set up the environment.
   
 At this point I had the environment set up with what I could immediately tell that was needed from my interpretation of the specication. From here, I moved on to Phase I
 
-## Phase I
+## Phase I - Ingesting
 The main hurdle in Phase I was learning the basics of **PHP**. Also I immediately realized I needed a way to generate the sample request (as detailed in the [Ingestion Agent doc](doc/IngestionAgent.md)), so I went to work on this first.
 
 ### Generating the Sample Request
@@ -59,4 +59,16 @@ Now to get to processing the actual request. My first pass was completed quickly
 
 Here, I was going for simplicity, so I could get move on to the next part of this phase, which will be pushing the formatted request into Redis. I planned on coming back to this part after I started working with Redis and Go if I need to restructure the data in any way, or in the *unlikely* case this implementation is perfect, come back at the end to add in all the error handling.
 
-[State of ingest.php](https://github.com/rickbau5/PostbackDelivery/blob/4f8bd6cb687a4c188b76a9d6a7f9cd171a97b286/src/ingest.php#L17-L28) at the conclusion of this section with lines of interest highlighted.
+[State of ingest.php](https://github.com/rickbau5/PostbackDelivery/blob/4f8bd6cb687a4c188b76a9d6a7f9cd171a97b286/src/ingest.php#L17-L28) at the conclusion of this section with lines of interest highlighted. From here I could move on to the extremely brief Phase II.
+
+## Phase II - Queueing
+This phase concerned getting the data into Redis from PHP. This proved very simple.
+
+### Pushing the processed request into Redis
+Now that I had the formatted request ready to be put into Redis, just needed to get that connection set up. To achieve this, I installed [phpredis](https://github.com/phpredis/phpredis), which provides a way to interact with Redis from PHP. As part of this, I had to toy with the PHP config to enable this extension. Also during this stage I created an Upstart service to maintain `redis-server` and ensure that it would start and be up constantly (I think?).
+
+Once the extension was enabled, I really only added two new lines of code to create this interaction:
+- `$redis->connect('127.0.0.1')`
+- `$redis->lPush('reqests', $populated)` where `$populated` is the formatted URL. (I'm pretty sure I'm going to need to come back to this point and restructure the data a bit, but at this point I'm more interested in getting the whole flow set up.)
+
+[State of ingest.php](https://github.com/rickbau5/PostbackDelivery/blob/7e4991aaadad63114abc796fef5fd886d429ac40/src/ingest.php#L28) at the conclusion of this section. From here, I could move onto the Go portion of this project.
