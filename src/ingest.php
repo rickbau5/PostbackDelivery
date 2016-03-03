@@ -13,7 +13,13 @@ if ($decoded) {
 
     if ($connected) {
         if (isset($decoded['data']) && isset($decoded['endpoint'])) {
-            $redis->lPush('requests', $postdata);
+            foreach($decoded['data'] as &$data) {
+                $postback = array(
+                    "endpoint" => $decoded['endpoint'],
+                    "data" => $data,
+                );
+                $redis->lPush('requests', json_encode($postback));
+            }
         } else {
             echo 'No data received.' . PHP_EOL;
         }

@@ -19,12 +19,6 @@ func redisClient() *redis.Client {
     return client
 }
 
-func formatString(s string) string {
-    t := strings.Trim(s, "]")
-    formatted := strings.Replace(t, "BRPOP requests 0: [requests ", "", 1)
-    return formatted
-}
-
 func jsonStringToMap(s string) map[string]interface{} {
     var requestData map[string]interface{}
     converted := []byte(s)
@@ -38,12 +32,18 @@ func jsonStringToMap(s string) map[string]interface{} {
 func constructGet(unformattedUrl string, dataMap map[string]interface{}) string {
     formatted := strings.Replace(unformattedUrl, "{key}", dataMap["key"].(string), 1)
     formatted = strings.Replace(formatted, "{value}", dataMap["value"].(string), 1)
+    bar := ""
+    if val, ok := dataMap["foo"]; ok {
+        bar = val.(string)
+    }
+    formatted = strings.Replace(formatted, "{bar}", bar, 1)
     return formatted
 } 
 
 func sendResponse(uResponse string, dataMap map[string]interface{}, method string) {
     if method == "GET" {
         response := constructGet(uResponse, dataMap)
+        fmt.Println("Sending response:", response)
         if resp, respErr := http.Get(response); respErr == nil {
             defer resp.Body.Close()
             if body, err := ioutil.ReadAll(resp.Body); err == nil {
@@ -78,26 +78,21 @@ func main() {
     ping := client.Ping()
     if _, errPing := ping.Result(); errPing == nil {
         for {
-            popCmd := client.BRPop(0, "requests")
-            if popCmd.Err() == nil {
-                formatted := formatString(popCmd.String())
-                mapped := jsonStringToMap(formatted)
+            if str, errPop := client.BRPop(0, "requests").Result(); errPop == nil {
+                fmt.Println(str[1])
+                mapped := jsonStringToMap(str[1])
+                
                 if end, ok := mapped["endpoint"]; ok {
                     endpoint := end.(map[string]interface{})
-                    if d, ok := mapped["data"]; ok {
-                        di := d.([]interface{})
-                        for _, data := range di {
-                            dataMap := data.(map[string]interface{})
-                            sendResponse(endpoint["url"].(string), dataMap, endpoint["method"].(string))
-                        }
-                    }
+                    data := mapped["data"].(map[string]interface{})
+                    sendResponse(endpoint["url"].(string), data, endpoint["method"].(string))    
                 } else {
                     fmt.Println("Endpoint is nil.")
                 }
             } else {
                 //on error
                 fmt.Println("Error while popping.")
-                fmt.Println(popCmd.Err())
+                fmt.Println(errPop)
             }
         }
     } else {
