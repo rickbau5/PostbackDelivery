@@ -7,6 +7,7 @@ import (
     "io/ioutil"
     "net/http"
     "net/url"
+    "regexp"
     "strings"
 )
 
@@ -29,16 +30,32 @@ func jsonStringToMap(s string) map[string]interface{} {
     return requestData
 }
 
+func braced(s string) string {
+    return fmt.Sprintf("{%s}", s)
+}
+
 func constructGet(unformattedUrl string, dataMap map[string]interface{}) string {
-    formatted := strings.Replace(unformattedUrl, "{key}", dataMap["key"].(string), 1)
-    formatted = strings.Replace(formatted, "{value}", dataMap["value"].(string), 1)
-    bar := ""
-    if val, ok := dataMap["foo"]; ok {
-        bar = val.(string)
+    formatted := unformattedUrl
+    for key, val := range dataMap {
+        k := key
+        formatted = strings.Replace(formatted, braced(k), val.(string), 1)
     }
-    formatted = strings.Replace(formatted, "{bar}", bar, 1)
+    regex := regexp.MustCompile("{[[:word:]]*}")
+    formatted = regex.ReplaceAllString(formatted, "") 
     return formatted
 } 
+
+func constructPost(unformattedUrl string, dataMap map[string]interface{}) (string, url.Values) {
+    if idx := strings.Index(unformattedUrl, "?"); idx != -1 {
+        unformattedUrl = unformattedUrl[:idx]
+    }
+    data := url.Values{}
+    for key, val := range dataMap {
+        data.Add(key, val.(string))
+    }
+
+    return unformattedUrl, data 
+}
 
 func sendResponse(uResponse string, dataMap map[string]interface{}, method string) {
     if method == "GET" {
@@ -55,11 +72,7 @@ func sendResponse(uResponse string, dataMap map[string]interface{}, method strin
             fmt.Println("Error with response", respErr)
         }
     } else if method == "POST" {
-        response := uResponse
-        if idx := strings.Index(response, "?"); idx != -1 {
-            response = response[:idx]
-        }
-        values := url.Values{"key":{dataMap["key"].(string)}, "value":{dataMap["value"].(string)}}
+        response, values := constructPost(uResponse, dataMap)
         if resp, err := http.PostForm(response, values); err == nil{
             defer resp.Body.Close()
             body, _ := ioutil.ReadAll(resp.Body)
@@ -79,7 +92,6 @@ func main() {
     if _, errPing := ping.Result(); errPing == nil {
         for {
             if str, errPop := client.BRPop(0, "requests").Result(); errPop == nil {
-                fmt.Println(str[1])
                 mapped := jsonStringToMap(str[1])
                 
                 if end, ok := mapped["endpoint"]; ok {
