@@ -43,6 +43,7 @@ func main() {
 
     ping := client.Ping()
     if _, errPing := ping.Result(); errPing == nil {
+        log.Println("Connected to database.")
         for {
             if str, errPop := client.BRPop(0, "requests").Result(); errPop == nil {
                 deliveryStart := time.Now()
