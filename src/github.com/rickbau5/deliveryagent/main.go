@@ -5,10 +5,13 @@ import (
     "fmt"
     "gopkg.in/redis.v3"
     "io/ioutil"
+    "log"
     "net/http"
     "net/url"
+    "os"
     "regexp"
     "strings"
+    "time"
 )
 
 func redisClient() *redis.Client {
@@ -37,8 +40,7 @@ func braced(s string) string {
 func constructGet(unformattedUrl string, dataMap map[string]interface{}) string {
     formatted := unformattedUrl
     for key, val := range dataMap {
-        k := key
-        formatted = strings.Replace(formatted, braced(k), val.(string), 1)
+        formatted = strings.Replace(formatted, braced(key), val.(string), 1)
     }
     regex := regexp.MustCompile("{[[:word:]]*}")
     formatted = regex.ReplaceAllString(formatted, "") 
@@ -57,59 +59,88 @@ func constructPost(unformattedUrl string, dataMap map[string]interface{}) (strin
     return unformattedUrl, data 
 }
 
-func sendResponse(uResponse string, dataMap map[string]interface{}, method string) {
+func sendResponse(uResponse string, dataMap map[string]interface{}, method string, deliveryStart time.Time) {
+    url := uResponse    // a bit of a naive way to do it. Not prod ;)
+    if split := strings.LastIndex(uResponse, "/"); split > 0 {
+        url = uResponse[:split]
+    }
+    var response *http.Response
+    var err error
+    var deliveryEnd time.Time
+    var start time.Time
+    var end time.Time
+
     if method == "GET" {
-        response := constructGet(uResponse, dataMap)
-        fmt.Println("Sending response:", response)
-        if resp, respErr := http.Get(response); respErr == nil {
-            defer resp.Body.Close()
-            if body, err := ioutil.ReadAll(resp.Body); err == nil {
-                fmt.Printf("%s\n", body)
-            } else {
-                fmt.Println("Error reading body", err)
-            }
-        } else {
-            fmt.Println("Error with response", respErr)
-        }
+        resp := constructGet(uResponse, dataMap)
+        deliveryEnd = time.Now()
+
+        start = time.Now()
+        response, err = http.Get(resp)
+        end = time.Now()
     } else if method == "POST" {
-        response, values := constructPost(uResponse, dataMap)
-        if resp, err := http.PostForm(response, values); err == nil{
-            defer resp.Body.Close()
-            body, _ := ioutil.ReadAll(resp.Body)
-            fmt.Printf("%s\n", body)
+        resp, values := constructPost(uResponse, dataMap)
+        deliveryEnd = time.Now()
+
+        start = time.Now()
+        response, err = http.PostForm(resp, values)
+        end = time.Now()
+    } else {
+        log.Println("Unknown method type %s for %s.\n", method, url)
+    }
+
+    if err == nil {
+        log.Printf("Delivery to %s processed in %dms.\n", url, (deliveryEnd.Nanosecond() - deliveryStart.Nanosecond()) / 1000000)
+
+        defer response.Body.Close()
+        if body, err := ioutil.ReadAll(response.Body); err == nil {
+            log.Printf("Code: %s in %dms.\n", response.Status, (end.Nanosecond() - start.Nanosecond()) / 1000000)
+            log.Printf("Body: %s\n", body)
         } else {
-            fmt.Println(err)
+            log.Println("Error reading body:", err)
         }
     } else {
-        fmt.Println("Unknown method type", method)
-    }    
+        log.Println("Error with response", err)
+    }
+}
+
+func setupLogger() *os.File {
+    file, err := os.OpenFile("deliveryagent.log", os.O_CREATE | os.O_RDWR | os.O_APPEND, 0666)
+    if err != nil {
+        panic("Couldn't open log file.")
+    }
+    log.SetOutput(file)
+    return file
 }
 
 func main() {
     client := redisClient()
-    
+    logFile := setupLogger()
+    defer logFile.Close()
+
     ping := client.Ping()
     if _, errPing := ping.Result(); errPing == nil {
         for {
             if str, errPop := client.BRPop(0, "requests").Result(); errPop == nil {
+                deliveryStart := time.Now()
                 mapped := jsonStringToMap(str[1])
                 
                 if end, ok := mapped["endpoint"]; ok {
                     endpoint := end.(map[string]interface{})
                     data := mapped["data"].(map[string]interface{})
-                    sendResponse(endpoint["url"].(string), data, endpoint["method"].(string))    
+                    sendResponse(endpoint["url"].(string), data, endpoint["method"].(string), deliveryStart)
                 } else {
-                    fmt.Println("Endpoint is nil.")
+                    log.Println("Endpoint is nil.")
                 }
             } else {
                 //on error
-                fmt.Println("Error while popping.")
-                fmt.Println(errPop)
+                log.Println("Error while popping.")
+                log.Println(errPop)
             }
         }
     } else {
         //Log error
-        fmt.Println(errPing)
+        log.Println(errPing)
+        log.Panicln("Couldn't ping the database.")
     }
 }
 
