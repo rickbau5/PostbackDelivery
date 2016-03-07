@@ -23,18 +23,51 @@ func redisClient() *redis.Client {
     return client
 }
 
-func jsonStringToMap(s string) map[string]interface{} {
-    var requestData map[string]interface{}
-    converted := []byte(s)
-    jsonErr := json.Unmarshal(converted, &requestData)
-    if jsonErr != nil {
-        panic(jsonErr)
+func setupLogger(path string) *os.File {
+    file, err := os.OpenFile(path, os.O_CREATE | os.O_RDWR | os.O_APPEND, 0666)
+    if err != nil {
+        panic("Couldn't open log file.")
     }
-    return requestData
+    log.SetOutput(file)
+    return file
 }
 
-func braced(s string) string {
-    return fmt.Sprintf("{%s}", s)
+func main() {
+    if len(os.Args) <= 1 {
+        fmt.Println("Must supply log file path.\n  deliveryagent /path/to/file.log")
+        os.Exit(1)
+    }
+    client := redisClient()
+    logFile := setupLogger(os.Args[1])
+    defer logFile.Close()
+
+    ping := client.Ping()
+    if _, errPing := ping.Result(); errPing == nil {
+        for {
+            if str, errPop := client.BRPop(0, "requests").Result(); errPop == nil {
+                deliveryStart := time.Now()
+                mapped := jsonStringToMap(str[1])
+
+                if end, ok := mapped["endpoint"]; ok {
+                    endpoint := end.(map[string]interface{})
+                    data := mapped["data"].(map[string]interface{})
+
+                    sendResponse(endpoint["url"].(string), data, endpoint["method"].(string), deliveryStart)
+                } else {
+                    log.Println("No endpoint in request.")
+                    log.Println(mapped)
+                }
+            } else {
+                //on error
+                log.Println("Error while popping.")
+                log.Println(errPop)
+            }
+        }
+    } else {
+        //Log error
+        log.Println(errPing)
+        log.Panicln("Couldn't ping the database.")
+    }
 }
 
 func constructGet(unformattedUrl string, dataMap map[string]interface{}) string {
@@ -43,9 +76,9 @@ func constructGet(unformattedUrl string, dataMap map[string]interface{}) string 
         formatted = strings.Replace(formatted, braced(key), val.(string), 1)
     }
     regex := regexp.MustCompile("{[[:word:]]*}")
-    formatted = regex.ReplaceAllString(formatted, "") 
+    formatted = regex.ReplaceAllString(formatted, "")
     return formatted
-} 
+}
 
 func constructPost(unformattedUrl string, dataMap map[string]interface{}) (string, url.Values) {
     if idx := strings.Index(unformattedUrl, "?"); idx != -1 {
@@ -56,7 +89,7 @@ func constructPost(unformattedUrl string, dataMap map[string]interface{}) (strin
         data.Add(key, val.(string))
     }
 
-    return unformattedUrl, data 
+    return unformattedUrl, data
 }
 
 func sendResponse(uResponse string, dataMap map[string]interface{}, method string, deliveryStart time.Time) {
@@ -99,48 +132,20 @@ func sendResponse(uResponse string, dataMap map[string]interface{}, method strin
             log.Println("Error reading body:", err)
         }
     } else {
-        log.Println("Error with response", err)
+        log.Println("Error with response:", err)
     }
 }
 
-func setupLogger() *os.File {
-    file, err := os.OpenFile("deliveryagent.log", os.O_CREATE | os.O_RDWR | os.O_APPEND, 0666)
-    if err != nil {
-        panic("Couldn't open log file.")
-    }
-    log.SetOutput(file)
-    return file
+func braced(s string) string {
+    return fmt.Sprintf("{%s}", s)
 }
 
-func main() {
-    client := redisClient()
-    logFile := setupLogger()
-    defer logFile.Close()
-
-    ping := client.Ping()
-    if _, errPing := ping.Result(); errPing == nil {
-        for {
-            if str, errPop := client.BRPop(0, "requests").Result(); errPop == nil {
-                deliveryStart := time.Now()
-                mapped := jsonStringToMap(str[1])
-                
-                if end, ok := mapped["endpoint"]; ok {
-                    endpoint := end.(map[string]interface{})
-                    data := mapped["data"].(map[string]interface{})
-                    sendResponse(endpoint["url"].(string), data, endpoint["method"].(string), deliveryStart)
-                } else {
-                    log.Println("Endpoint is nil.")
-                }
-            } else {
-                //on error
-                log.Println("Error while popping.")
-                log.Println(errPop)
-            }
-        }
-    } else {
-        //Log error
-        log.Println(errPing)
-        log.Panicln("Couldn't ping the database.")
+func jsonStringToMap(s string) map[string]interface{} {
+    var requestData map[string]interface{}
+    converted := []byte(s)
+    jsonErr := json.Unmarshal(converted, &requestData)
+    if jsonErr != nil {
+        panic(jsonErr)
     }
+    return requestData
 }
-
