@@ -75,3 +75,23 @@ Once the extension was enabled, I really only added two new lines of code to cre
 
 ### Pulling the data out of Redis into Go
 Here I fought with Go for a bit to figure out exactly how to import the go-redis package to have access to the Redis connector. Once that was resolved, connecting to Redis from Go and verifying that it was working and communicating correctly was simple. [State of delivery agent](https://github.com/rickbau5/PostbackDelivery/blob/abf9f62f9d20266d141035146e48f07c7311049d/src/github.com/rickbau5/deliveryagent/main.go) at this point was essentially the "hello world" of this situation.
+
+## Phase III - Delivery
+This phase concerned reformatting the data sent in the request and sending it back. As this portion was written in retrospect, I will summarize it below.
+
+1. Transform raw string from Redis in JSON format into something Go could work with, ended up becoming a map.
+2. Take the map and reformat the endpoint URL using the info in the `data` object. 
+3. Depending on method (GET/POST), send the formatted request to the endpoint and await a response.
+4. Receive response and log the whole process.
+
+## Finishing Up
+With all phases of development completed, I went to work configuring the environment for automatic starting of the processes. 
+
+Towards the end of [Redis Quick Start](http://redis.io/topics/quickstart) there are instructions on how to set it up _more properly_. I followed the instructions there and now had redis cleanly starting when the VPS starts up and shutting down cleanly on reboot/shutdown. 
+
+Next was getting `deliveryagent` to run on startup as well. To do this, I edited the startup script for Redis to emit a `started` event for the database, and created a custom Upstart service that listens for that even and starts `deliveryagent`. At this point it's hardcoded to the path it was built from, which is fine for this play case.
+
+## All Done
+At this point, I am finished with this project. There were many things left to be done and improved upon, but I'm comfortable with where it's at and how much time was put into it. I put much more than the expected 6-8 hours (hahahaha) in, as all this was new tech and a bit to read up on and learn. It was, nonetheless, an awesome experience and was a lot of fun to implement. I hadn't done anything of this nature before, but I'm definitely walking away with some new tools in my belt. In particular, I see a lot of potential applications for the PHP-Redis interaction.
+
+As for Go, the jury is still out for me. I have people breathing down my neck to make the leap to other languages, like Rust, and finally break out of my JVM and garbage collected languages that I'm so used to. That being said, I enjoyed learning a bit of Go and will probably come back to it at some point. 
